@@ -58,7 +58,9 @@ pipeline {
 
         stage('Deploy (entorno de pruebas)') {
             steps {
+                // La clave de sesión no está en el repositorio: se genera aleatoria en cada despliegue.
                 sh '''
+                    export SECRET_KEY=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \\n')
                     docker compose up -d --build
                     for i in $(seq 1 20); do
                         if docker compose exec -T app python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"; then

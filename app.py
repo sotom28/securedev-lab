@@ -44,7 +44,15 @@ LOCKOUT_SECONDS = 300
 
 def create_app(database_path=None):
     app = Flask(__name__)
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "clave-insegura-solo-laboratorio")
+    # La clave que firma las sesiones nunca va en el código: se exige por variable de
+    # entorno (archivo .env, fuera de Git) y debe tener al menos 32 caracteres.
+    secret_key = os.getenv("SECRET_KEY", "")
+    if len(secret_key) < 32:
+        raise RuntimeError(
+            "SECRET_KEY no definida o demasiado corta (mínimo 32 caracteres). "
+            "Defínala en el archivo .env (ver .env.example)."
+        )
+    app.config["SECRET_KEY"] = secret_key
     # Cookie de sesión endurecida: no accesible desde JavaScript y no enviada en
     # peticiones entre sitios. SECURE se activa con SESSION_COOKIE_SECURE=1 cuando hay HTTPS.
     app.config.update(
