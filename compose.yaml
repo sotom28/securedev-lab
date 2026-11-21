@@ -1,8 +1,21 @@
 name: securedev-estudiante
 
 services:
+  # Paso único al arrancar: deja el volumen de datos con el dueño correcto (usuario 10001),
+  # porque la app ya no corre como root. Termina y no queda en ejecución.
+  app-init:
+    build: .
+    user: "0"
+    command: ["chown", "-R", "10001:10001", "/data"]
+    volumes:
+      - app_data:/data
+    restart: "no"
+
   app:
     build: .
+    depends_on:
+      app-init:
+        condition: service_completed_successfully
     environment:
       DATABASE_PATH: /data/securedev.db
       SECRET_KEY: ${SECRET_KEY:?Defina SECRET_KEY en el archivo .env (ver .env.example)}
