@@ -1,0 +1,10 @@
+# Recolecta las métricas de la aplicación (securedev_*) cada 5 segundos.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: securedev-app
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["app:8000"]
