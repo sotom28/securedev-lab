@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 import hmac
 import secrets
+import threading
 
 from flask import Flask, abort, g, redirect, render_template, request, session, url_for
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
@@ -30,6 +31,15 @@ LOGIN_FAILURES = Counter(
     "securedev_login_failures_total",
     "Intentos de acceso fallidos",
 )
+LOGIN_BLOCKED = Counter(
+    "securedev_login_blocked_total",
+    "Intentos de acceso bloqueados por exceso de fallos",
+)
+
+# Protección contra fuerza bruta: tras MAX_FAILED_LOGINS fallos seguidos de la misma
+# IP contra el mismo usuario, se bloquea el acceso durante LOCKOUT_SECONDS.
+MAX_FAILED_LOGINS = 5
+LOCKOUT_SECONDS = 300
 
 
 def create_app(database_path=None):
@@ -150,6 +160,26 @@ def create_app(database_path=None):
     def current_user():
         return session.get("user_id")
 
+    failed_logins = {}  # (ip, usuario) -> (cantidad de fallos, inicio de la ventana)
+    failed_logins_lock = threading.Lock()
+
+    def login_is_locked(key):
+        with failed_logins_lock:
+            count, started = failed_logins.get(key, (0, 0.0))
+            if count and time.time() - started >= LOCKOUT_SECONDS:
+                failed_logins.pop(key, None)  # la ventana venció: se reinicia el contador
+                return False
+            return count >= MAX_FAILED_LOGINS
+
+    def register_failed_login(key):
+        with failed_logins_lock:
+            count, started = failed_logins.get(key, (0, time.time()))
+            failed_logins[key] = (count + 1, started)
+
+    def clear_failed_logins(key):
+        with failed_logins_lock:
+            failed_logins.pop(key, None)
+
     @app.route("/")
     def index():
         if not current_user():
@@ -165,15 +195,25 @@ def create_app(database_path=None):
         if request.method == "POST":
             username = request.form.get("username", "")
             password = request.form.get("password", "")
+            key = (request.remote_addr, username.lower())
+            if login_is_locked(key):
+                LOGIN_BLOCKED.inc()
+                app.logger.warning("Login bloqueado ip=%s usuario=%r", request.remote_addr, username)
+                return render_template(
+                    "login.html", error="Demasiados intentos fallidos. Intente de nuevo en 5 minutos."
+                ), 429
             user = db().execute(
                 "SELECT id, username, password_hash FROM users WHERE username = ?", (username,)
             ).fetchone()
             if user and check_password_hash(user["password_hash"], password):
+                clear_failed_logins(key)
                 session.clear()
                 session["user_id"] = user["id"]
                 session["username"] = user["username"]
                 return redirect(url_for("index"))
             LOGIN_FAILURES.inc()
+            register_failed_login(key)
+            app.logger.warning("Login fallido ip=%s usuario=%r", request.remote_addr, username)
             error = "Credenciales inválidas"
         return render_template("login.html", error=error)
 

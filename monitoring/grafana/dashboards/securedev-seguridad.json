@@ -117,15 +117,16 @@
     {
       "id": 5,
       "type": "timeseries",
-      "title": "Intentos de login fallidos por minuto",
+      "title": "Intentos de login fallidos y bloqueados por minuto",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
       "datasource": { "type": "prometheus", "uid": "securedev-metrics" },
       "targets": [
-        { "refId": "A", "expr": "increase(securedev_login_failures_total[1m])", "legendFormat": "Logins fallidos" }
+        { "refId": "A", "expr": "increase(securedev_login_failures_total[1m])", "legendFormat": "Logins fallidos" },
+        { "refId": "B", "expr": "increase(securedev_login_blocked_total[1m])", "legendFormat": "Intentos bloqueados (429)" }
       ],
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "fixed", "fixedColor": "red" },
+          "color": { "mode": "palette-classic" },
           "custom": { "drawStyle": "bars", "fillOpacity": 60 },
           "thresholds": {
             "mode": "absolute",
