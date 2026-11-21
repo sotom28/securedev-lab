@@ -1,4 +1,5 @@
 # Recolecta las métricas de la aplicación (securedev_*) cada 5 segundos.
+# /metrics exige un token Bearer; se lee del archivo montado por compose (no está en el repositorio).
 global:
   scrape_interval: 5s
   evaluation_interval: 5s
@@ -6,5 +7,8 @@ global:
 scrape_configs:
   - job_name: securedev-app
     metrics_path: /metrics
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/metrics_token
     static_configs:
       - targets: ["app:8000"]

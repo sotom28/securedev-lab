@@ -283,6 +283,13 @@ def create_app(database_path=None):
 
     @app.get("/metrics")
     def metrics():
+        # Solo Prometheus puede leer las métricas: exige "Authorization: Bearer <METRICS_TOKEN>".
+        # Si el token no está configurado, el acceso se niega (falla cerrado).
+        expected = os.getenv("METRICS_TOKEN", "")
+        sent = request.headers.get("Authorization", "")
+        if not expected or not hmac.compare_digest(sent, f"Bearer {expected}"):
+            app.logger.warning("Acceso no autorizado a /metrics ip=%s", request.remote_addr)
+            abort(401)
         return app.response_class(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
     return app

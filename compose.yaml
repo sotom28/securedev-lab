@@ -6,6 +6,7 @@ services:
     environment:
       DATABASE_PATH: /data/securedev.db
       SECRET_KEY: ${SECRET_KEY:?Defina SECRET_KEY en el archivo .env (ver .env.example)}
+      METRICS_TOKEN: ${METRICS_TOKEN:?Defina METRICS_TOKEN en el archivo .env (ver .env.example)}
     volumes:
       - app_data:/data
     ports:
@@ -16,6 +17,10 @@ services:
     build: ./monitoring/prometheus
     depends_on:
       - app
+    # El token llega como archivo desde la variable de entorno (sin bind mounts ni secretos en la imagen).
+    configs:
+      - source: metrics_token
+        target: /etc/prometheus/metrics_token
     volumes:
       - prometheus_data:/prometheus
 
@@ -34,6 +39,10 @@ services:
       - grafana_data:/var/lib/grafana
     ports:
       - "127.0.0.1:3000:3000"
+
+configs:
+  metrics_token:
+    environment: METRICS_TOKEN
 
 volumes:
   app_data:
