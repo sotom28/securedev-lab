@@ -35,6 +35,13 @@ LOGIN_FAILURES = Counter(
 def create_app(database_path=None):
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "clave-insegura-solo-laboratorio")
+    # Cookie de sesión endurecida: no accesible desde JavaScript y no enviada en
+    # peticiones entre sitios. SECURE se activa con SESSION_COOKIE_SECURE=1 cuando hay HTTPS.
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "0") == "1",
+    )
     app.config["DATABASE_PATH"] = str(
         database_path or os.getenv("DATABASE_PATH", str(Path(__file__).with_name("securedev.db")))
     )
@@ -73,6 +80,20 @@ def create_app(database_path=None):
 
     @app.after_request
     def record_request(response):
+        # Cabeceras de seguridad (corrigen los hallazgos de OWASP ZAP).
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; style-src 'self' 'unsafe-inline'; "
+            "frame-ancestors 'none'; form-action 'self'; base-uri 'self'"
+        )
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Server"] = "SecureDev"  # no revelar versiones de Werkzeug/Python
         if request.endpoint != "metrics":
             endpoint = request.endpoint or "unknown"
             HTTP_REQUESTS.labels(endpoint, request.method, str(response.status_code)).inc()

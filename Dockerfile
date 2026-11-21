@@ -8,4 +8,6 @@ COPY templates ./templates
 
 ENV PYTHONUNBUFFERED=1 DATABASE_PATH=/data/securedev.db
 EXPOSE 8000
-CMD ["python", "app.py"]
+# Servidor de producción (gunicorn) en lugar del servidor de desarrollo de Flask.
+# Un solo worker: las métricas de Prometheus viven en la memoria del proceso.
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "1", "--threads", "4", "app:create_app()"]
