@@ -61,6 +61,12 @@ def create_app(database_path=None):
     @app.before_request
     def start_request_timer():
         g.request_started_at = time.perf_counter()
+        # Nonce aleatorio por petición: autoriza solo el bloque <style> de la plantilla.
+        g.csp_nonce = secrets.token_urlsafe(16)
+
+    @app.context_processor
+    def inject_csp_nonce():
+        return {"csp_nonce": g.get("csp_nonce", "")}
 
     @app.before_request
     def csrf_protect():
@@ -82,7 +88,7 @@ def create_app(database_path=None):
     def record_request(response):
         # Cabeceras de seguridad (corrigen los hallazgos de OWASP ZAP).
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; style-src 'self' 'unsafe-inline'; "
+            f"default-src 'self'; style-src 'self' 'nonce-{g.get('csp_nonce', '')}'; "
             "frame-ancestors 'none'; form-action 'self'; base-uri 'self'"
         )
         response.headers["X-Frame-Options"] = "DENY"
